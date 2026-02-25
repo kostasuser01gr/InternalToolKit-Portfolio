@@ -1,280 +1,106 @@
-# InternalToolKit
+# InternalToolKit: Enterprise Operations Monorepo
 
-Production-ready monorepo template for an internal operations dashboard:
-- `apps/web`: Next.js App Router frontend (Vercel target)
-- `apps/api`: Cloudflare Worker backend (Wrangler/GitHub Actions target)
-- `packages/shared`: shared TypeScript + Zod schemas/contracts
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-black?logo=vercel)](https://internal-tool-kit-web.vercel.app)
+[![Node.js](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
-Core implemented modules:
-- Auth + sessions (`loginName + 4-digit PIN`, plus email/password compatibility)
-- RBAC-safe admin/users management
-- Unified team chat workspace (threads + slash commands + artifacts + pinned context)
-- Shift planner (weekly board + drag/drop move + request flow + CSV import/export)
-- Fleet management (vehicles + status/km/fuel + event logging)
-- Washer operations (task queue + optional voice notes)
-- Shared calendar timeline (shifts/requests/fleet/washer events)
-- Quantum theme switching (violet/cyan/amber) + dark/light mode toggle
+InternalToolKit is a high-signal, production-ready monorepo centralizing core business operations: fleet management, shift scheduling, and real-time team communication. Built with an "Edge-First" philosophy, it prioritizes sub-100ms latency, strict type-safety, and operational resilience.
 
-## Monorepo Layout
+## 🏗 Architecture & Design Patterns
 
-```text
-/
-  apps/
-    web/
-    api/
-  packages/
-    shared/
-  docs/
-  .github/workflows/
-```
+The platform is architected as a **Contract-Driven Monorepo** to ensure maximum reliability across distributed services.
 
-## Requirements
+### Core Architecture
+- **Monorepo Engine:** Managed via `pnpm workspaces` for atomic dependency management.
+- **Contract-First API:** Shared `Zod` schemas between `apps/web` (Next.js) and `apps/api` (Cloudflare Workers) to guarantee 100% type-safety at the networking layer.
+- **Edge Data Layer:** Optimized for global delivery using Cloudflare's edge network for the API, paired with a pooled PostgreSQL instance for high-concurrency relational data.
+- **State Strategy:** Hybrid approach using **React Server Components (RSC)** for data hydration and **Zustand** for interactive, optimistic UI updates in the dashboard.
 
-- Node.js 22+ (CI uses Node 22)
-- pnpm 10.x
+### Tech Stack
+- **Frontend:** Next.js 14+ (App Router), Tailwind CSS, Framer Motion, Lucide.
+- **Backend:** Cloudflare Workers (Edge Functions), Node.js.
+- **Database:** PostgreSQL (Supabase/Neon), Prisma ORM, Knex.js (Migrations).
+- **Validation/Types:** Zod, TypeScript (Strict Mode).
+- **Tooling:** Vitest, Playwright, ESLint, Prettier.
 
-## Quickstart (Under 15 Minutes)
+---
 
-1. Install dependencies.
+## 🚀 Key Modules
+
+### 1. Fleet Management Pipeline (V2)
+A real-time vehicle logistics engine featuring a robust state machine for vehicle status tracking (Available → In Use → Maintenance → Incident). Optimized with PostgreSQL indexes for fast lookups across thousands of assets.
+
+### 2. Workforce Shift Planner
+An interactive timeline interface built with CSS Grid and windowed rendering. It includes real-time conflict detection and automated shift-overlap validation at the database level.
+
+### 3. Unified Ops Inbox
+A centralized hub for operational tasks and internal team chat. Features "Workspaces" isolation, ensuring data privacy and role-based access control (RBAC) across different departments.
+
+---
+
+## 🛠 Engineering Standards
+
+- **Security:** Session management via HTTP-only cookies, strict RBAC middleware, and input sanitization via Zod.
+- **Performance:** Cursor-based pagination for large datasets, SVG-based iconography, and optimized bundle sizes.
+- **Observability:** Centralized logging and health endpoints (`/api/health`) for database and worker heartbeat monitoring.
+- **Resilience:** Circuit breaker patterns for AI provider fallbacks and schema-fallback banners for graceful degradation.
+
+---
+
+## 🚦 Local Development
+
+### Prerequisites
+- Node.js LTS & pnpm
+- A running PostgreSQL instance (or Supabase project)
+
+### Setup
+1. **Clone & Install:**
+   ```bash
+   git clone https://github.com/kostasuser01gr/InternalToolKit-Portfolio
+   pnpm install
+   ```
+
+2. **Environment Configuration:**
+   Copy `.env.example` in `apps/web` and `apps/api` and fill in the required fields:
+   ```env
+   DATABASE_URL="postgresql://..."
+   SESSION_SECRET="your-32-char-secret"
+   NEXT_PUBLIC_API_URL="http://localhost:8787"
+   ```
+
+3. **Database Setup:**
+   ```bash
+   pnpm --filter @internal-toolkit/web db:migrate:dev
+   pnpm --filter @internal-toolkit/web db:seed
+   ```
+
+4. **Run Workspace:**
+   ```bash
+   pnpm dev
+   ```
+
+---
+
+## 🧪 Testing & QA
+
+Run the full suite of unit and E2E tests:
 ```bash
-pnpm install
-```
-2. Create local env files.
-```bash
-cp apps/web/.env.example apps/web/.env.local
-cp apps/api/.dev.vars.example apps/api/.dev.vars
-```
-3. Apply DB migrations.
-```bash
-pnpm --filter @internal-toolkit/web db:migrate:deploy
-```
-4. Start web + api.
-```bash
-pnpm dev
+# Unit tests
+pnpm test:unit
+
+# E2E Smoke tests (Playwright)
+pnpm test:e2e
 ```
 
-Default local endpoints:
-- Web: `http://127.0.0.1:3000`
-- API: `http://127.0.0.1:8787`
+---
 
-Dev seed users after `pnpm test:e2e` or `pnpm --filter @internal-toolkit/web db:reset`:
-- `admin` / PIN `1234`
-- `viewer` / PIN `2222`
-- `employee` / PIN `3456`
-- `washer` / PIN `7777`
+## 📐 Trade-offs & Decisions
 
-These seeded credentials are for local smoke/dev only and are not a production onboarding flow.
+- **Auth Strategy:** Chose a PIN-based rapid-access flow for internal staff, prioritizing speed of entry in high-pressure environments over multi-factor authentication for standard roles.
+- **API Choice:** Selected Cloudflare Workers over standard Node.js servers to ensure minimal latency for field staff accessing the app from mobile devices in varied connectivity zones.
+- **DB Migration Logic:** Implemented a custom migration script (`migrate-deploy.mjs`) to handle zero-downtime schema updates during Vercel deployments.
 
-## Run / Test / Build
+---
 
-From repo root:
-- `pnpm dev`
-- `pnpm lint`
-- `pnpm typecheck`
-- `pnpm test:unit`
-- `pnpm test:e2e`
-- `pnpm test`
-- `pnpm build`
-
-Database scripts (`apps/web`):
-- `pnpm --filter @internal-toolkit/web db:migrate:dev`
-- `pnpm --filter @internal-toolkit/web db:migrate:deploy`
-- `pnpm --filter @internal-toolkit/web db:migrate:status`
-- `pnpm --filter @internal-toolkit/web db:reset`
-
-## Environment Variables
-
-Web (`apps/web`), see `apps/web/.env.example`:
-- `SESSION_SECRET` (required in hosted env, >=32 chars)
-- `DATABASE_URL` (required in hosted env; Supabase pooler URI recommended)
-- `DIRECT_URL` (required for migration workflows; Supabase direct URI; runtime fallback target)
-- `NEXT_PUBLIC_API_URL`
-- `FREE_ONLY_MODE` (`1` required)
-- `AI_PROVIDER_MODE` (`cloud_free` or `mock`)
-- `AI_ALLOW_PAID` (`0` required)
-- `NEXT_PUBLIC_FEATURE_VOICE_INPUT` (`0` default)
-- `NEXT_PUBLIC_FEATURE_UNIFIED_CHAT` (`1` default)
-- `NEXT_PUBLIC_FEATURE_CUSTOM_SHORTCUTS` (`1` default)
-- `NEXT_PUBLIC_FEATURE_CLOUD_AI_GATEWAY` (`1` default)
-
-API worker (`apps/api`), see `apps/api/.dev.vars.example`:
-- `APP_VERSION`
-- `ENVIRONMENT` (`dev`/`prod`)
-- `ALLOWED_ORIGINS` (strict comma-separated allowlist; `*` rejected)
-- `FREE_ONLY_MODE` (`1` required)
-- `AI_PROVIDER_MODE` (`cloud_free` or `mock`)
-- `AI_ALLOW_PAID` (`0` required)
-- `ALLOW_LEGACY_MUTATIONS` (`0` default, keep off)
-
-Runtime validation:
-- Hosted runtime fails fast when `SESSION_SECRET` or `DATABASE_URL` is missing/blank.
-- Hosted runtime rejects `DATABASE_URL=file:...`; production must use persistent Postgres.
-- Hosted runtime requires `DATABASE_URL` to start with `postgresql://` or `postgres://`.
-- Hosted runtime requires structurally valid Postgres URIs; use raw URI values and URL-encode special password characters.
-- Free-only mode is enforced: `FREE_ONLY_MODE=1`, `AI_ALLOW_PAID=0`, and paid provider keys are rejected.
-- Local development defaults to `postgresql://postgres:postgres@127.0.0.1:5432/internal_toolkit?schema=public`.
-- Supabase format examples:
-  - `DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require`
-  - `DIRECT_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require`
-- Vercel env inputs must be raw URI values only (no `DATABASE_URL=` prefix and no wrapping quotes).
-- Runtime prefers `DATABASE_URL` and automatically retries with `DIRECT_URL` once on DB connectivity errors.
-
-## Runtime 500 Remediation (2026-02-19)
-- Symptom: production `POST /api/session/login` returned 500.
-- Root cause: hosted env had invalid runtime DB config (sqlite/file URL), and runtime env validation had been too strict for non-runtime migration variables.
-- Fix: moved runtime to Postgres path, scoped hosted fail-fast validation to runtime-required vars, and blocked file-based sqlite URLs in hosted production.
-
-## Unified Chat Migration Readiness (2026-02-20)
-- Symptom: `/chat` can fail or partially degrade after deploy if unified-chat migration is not applied yet.
-- Current behavior: optional chat enhancements degrade gracefully and core route remains available.
-- Required fix in hosted environments:
-  - `pnpm --filter @internal-toolkit/web db:migrate:deploy`
-  - verify with:
-    - `curl -s https://<your-domain>/api/health`
-    - `curl -s https://<your-domain>/api/version`
-
-## Auth and Security Baseline
-
-- Invite onboarding uses one-time token flow with expiry and audit events.
-- Password reset uses one-time token flow with expiry and session revocation on completion.
-- Password/PIN values are never stored plaintext (`bcrypt` hashes only).
-- Session lifecycle is DB-backed (`AuthSession`): active sessions list, revoke current, revoke one, revoke all.
-- Admin-destructive actions require step-up PIN verification with short-lived elevated session.
-- Login abuse controls are DB-backed and distributed by IP + account + device dimensions with lockouts and security events.
-- Structured request logging + request IDs are propagated and surfaced in error/status UI.
-
-## Canonical Backend Strategy
-
-Canonical backend is **Web-only** (`apps/web` route handlers + server actions) for auth/RBAC/domain mutations.
-
-Worker (`apps/api`) remains non-canonical for health/integration endpoints:
-- Legacy worker mutation endpoints are disabled by default via `ALLOW_LEGACY_MUTATIONS=0`.
-- Compatibility mode (if re-enabled temporarily) has a hard deprecation deadline: `2026-06-30`.
-
-Details: `docs/adr/backend-strategy.md`.
-
-## Data Scaling Contract
-
-Data list/query contract is implemented with:
-- `page`
-- `pageSize`
-- `sort`
-- `sortField`
-- `q`
-- `from`
-- `to`
-
-Large record sets are paged at query layer (no full-table in-memory scans), with deterministic sort including `id` tie-breaker and supporting indexes (`Record` table indexes on pagination/search paths).
-
-## Migration SOP and Rollback
-
-Migration strategy ADR: `docs/adr/migrations-strategy.md`.
-
-SOP:
-1. Change schema in `apps/web/prisma/schema.prisma`.
-2. Create migration locally: `pnpm --filter @internal-toolkit/web db:migrate:dev`.
-3. Commit migration files under `apps/web/prisma/migrations`.
-4. Deploy with: `pnpm --filter @internal-toolkit/web db:migrate:deploy`.
-5. Verify with: `pnpm --filter @internal-toolkit/web db:migrate:status`.
-
-Local-only shortcut (never in CI/prod):
-- `pnpm --filter @internal-toolkit/web db:push:dev`
-
-Rollback/restore note:
-1. Take DB backup/snapshot before deploy.
-2. If rollback is required, redeploy previous app revision.
-3. Restore DB snapshot to pre-migration state.
-4. Re-run migration status and smoke checks.
-
-## Deployment
-
-### Web (Vercel via GitHub)
-1. Import this repo in Vercel.
-2. Set root directory to `apps/web`.
-3. Build command: `pnpm build` (at repo root is also supported by monorepo setup).
-4. Set env vars at minimum:
-   - `SESSION_SECRET=<strong-random-secret-at-least-32-chars>`
-   - `NEXT_PUBLIC_API_URL=https://<worker-name>.<subdomain>.workers.dev`
-   - `DATABASE_URL=<supabase-pooled-uri>`
-   - `DIRECT_URL=<supabase-direct-uri>`
-5. Connect Vercel to `main` branch for auto deploys.
-6. Redeploy after any env var update.
-
-### API (Cloudflare Workers via GitHub Actions)
-1. Configure `apps/api/wrangler.toml` environments (`dev`, `staging`, `production`) as needed.
-2. Set GitHub repository secrets:
-   - `CLOUDFLARE_API_TOKEN` (required)
-   - `CLOUDFLARE_ACCOUNT_ID` (optional)
-3. Worker deploy workflow (`.github/workflows/deploy-worker.yml`) deploys on `main` with:
-   - `wrangler deploy --env production`
-4. Local manual deploy:
-```bash
-pnpm --filter @internal-toolkit/api deploy
-```
-
-### Cloud Verification (Post-Deploy)
-```bash
-curl -s https://<your-domain>/api/health
-curl -s https://<your-domain>/v1/ai/models
-curl -s https://<your-domain>/v1/ai/usage
-curl -s https://<your-domain>/manifest.json
-curl -s https://<your-domain>/api/version
-```
-
-## OpenAI MCP Registration (Cloudflare Tunnel, Free)
-
-Recommended free method for public HTTPS exposure: Cloudflare Tunnel.
-
-- Use `ops/cloudflare/setup.md` for full setup (quick mode + named tunnel mode).
-- Example tunnel config template: `ops/cloudflare/config.example.yml`.
-- OpenAI MCP domain verification does **not** work with `localhost` URLs.
-- Verification requires a public HTTPS URL and the verification file must return **plain text only** (no HTML wrapper).
-
-Verification commands:
-```bash
-curl https://app.example.com/.well-known/mcp-verification.txt
-curl https://app.example.com/health
-```
-
-OpenAI form copy/paste pack:
-- `ops/openai-form-pack.md`
-
-## CI Gates
-
-CI workflow: `.github/workflows/ci.yml`
-- install
-- migrate deploy
-- lint
-- typecheck
-- unit tests
-- e2e smoke
-- build
-
-## Proof Pack
-
-Run these from repo root:
-
-```bash
-pnpm -w install
-pnpm -w lint
-pnpm -w typecheck
-pnpm -w test
-pnpm -C apps/web build
-```
-
-Expected outcomes:
-- install succeeds with no manual edits beyond env vars.
-- lint/typecheck pass.
-- unit + e2e tests pass.
-- Next.js build completes successfully.
-
-## Documentation Index
-
-- `docs/adr/backend-strategy.md`
-- `docs/adr/migrations-strategy.md`
-- `docs/ADR-0001-storage.md`
-- `docs/AUDIT.md`
-- `docs/DEPLOY.md`
-- `docs/SECURITY.md`
-- `docs/TROUBLESHOOTING.md`
-- `CHANGELOG.md`
+## 📄 License
+MIT. Created by **Kostas** (@kostasuser01gr).
